@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+int IIC_IO = 0xc0036909;
+signed char buf_getData[] = {0, 0, 5, 1, 2, 0x42, 0, 0, 0, 0};
 
 int write_buf(int fd, char * buf, int len)
 {
@@ -20,6 +22,34 @@ int write_buf(int fd, char * buf, int len)
     return result;
 }
 
+int read_value(int fd)
+{
+    int result;
+    int i;
+    usleep(250000);
+    printf("ioctl get value\n");
+    result = ioctl(fd, IIC_IO, buf_getData);
+    if (0 > result)
+    {
+        printf("result = %d\n", result);
+        printf("errno = %d\n", errno);
+        printf("Oh dear, something went wrong! %s\n", strerror(errno));
+        printf("failed to ioctl - abort\n");
+        close(fd);
+        result = -1;
+    }
+    else
+    {
+        printf("value =");
+        for (i = 0 ; i < 5 ; ++i)
+        {
+            printf(" %d", buf_getData[5 + i]);
+        }
+        printf("\n");
+    }
+    return result;
+}
+
 int main()
 {
     int len_connected = 2;
@@ -28,11 +58,11 @@ int main()
     signed char buf_float[] = {0, 'f'};
     int len_init = 2;
     signed char buf_init[] = {0, 51};
+    signed char buf_single[] = {0x41, 1};
+    signed char buf_continuous[] = {0x41, 2};
     signed char buf_getStatus[] = {0, 0, 5, 1, 2, 0x32, 0};
-    signed char buf_getData[] = {0, 0, 5, 1, 2, 0x42, 0, 0, 0, 0};
     signed char buf_port[] = {0};
     int IIC_CONNECT = 0xc0036907;
-    int IIC_IO = 0xc0036909;
     int fd = 0;
     int i = 0;
     int j = 0;
@@ -78,6 +108,35 @@ int main()
         return 1;
     }
     usleep(250000);
+    printf("ioctl set single read\n");
+    result = ioctl(fd, IIC_IO, buf_single);
+    if (0 > result)
+    {
+        printf("result = %d\n", result);
+        printf("errno = %d\n", errno);
+        printf("Oh dear, something went wrong! %s\n", strerror(errno));
+        printf("failed to ioctl - abort\n");
+        close(fd);
+        return 1;
+    }
+    result = read_value(fd);
+    if (0 > result)
+    {
+        return 1;
+    }
+    usleep(250000);
+    printf("ioctl set continuous read\n");
+    result = ioctl(fd, IIC_IO, buf_continuous);
+    if (0 > result)
+    {
+        printf("result = %d\n", result);
+        printf("errno = %d\n", errno);
+        printf("Oh dear, something went wrong! %s\n", strerror(errno));
+        printf("failed to ioctl - abort\n");
+        close(fd);
+        return 1;
+    }
+    usleep(250000);
     printf("ioctl get status\n");
     result = ioctl(fd, IIC_IO, buf_getStatus);
     if (0 > result)
@@ -92,24 +151,11 @@ int main()
     printf("status = %d\n", buf_getStatus[5]);
     for (j = 0 ; j < 10 ; ++j)
     {
-        usleep(250000);
-        printf("ioctl get value\n");
-        result = ioctl(fd, IIC_IO, buf_getData);
+        result = read_value(fd);
         if (0 > result)
         {
-            printf("result = %d\n", result);
-            printf("errno = %d\n", errno);
-            printf("Oh dear, something went wrong! %s\n", strerror(errno));
-            printf("failed to ioctl - abort\n");
-            close(fd);
             return 1;
         }
-        printf("value =");
-        for (i = 0 ; i < 5 ; ++i)
-        {
-            printf(" %d", buf_getData[5 + i]);
-        }
-        printf("\n");
     }
     close(fd);
     return 0;
