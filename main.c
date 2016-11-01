@@ -8,7 +8,7 @@
 int IIC_IO = 0xc0036909;
 signed char buf_getData[] = {0, 0, 5, 1, 2, 0x42, 0, 0, 0, 0};
 int const SLEEP = 250000;
-int FDS [] = {-1, -1}
+int FDS [] = {-1, -1};
 int const FDS_LEN = 2;
 
 
@@ -16,6 +16,8 @@ void exit_extra(
 		int result,
 		char * what)
 {
+	int i;
+
 	printf("result = %c\n", result);
 	printf("errno = %d\n", errno);
 	printf("Oh dear, something went wrong! %s\n", strerror(errno));
@@ -91,7 +93,7 @@ int main()
     signed char buf_port[] = {0};
     int IIC_CONNECT = 0xc0036907;
     int fd_iic = 0;
-    int fd_dcm 0;
+    int fd_dcm = 0;
     int i = 0;
     int j = 0;
     int result = 0;
