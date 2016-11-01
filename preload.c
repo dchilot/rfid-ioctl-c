@@ -11,7 +11,7 @@
 #include <dlfcn.h>
 
 /*
- * $CC -O2 -w preload.c -o preload -ldl -L $INSTALLDIR/lib/ -I $INSTALLDIR/include -fPIC -shared
+ * $CC -O2 -w preload.c -o preload -ldl -fPIC -shared
  */
 
 typedef int (*orig_open_f_type)(const char *pathname, int flags, ...);
@@ -78,6 +78,7 @@ ssize_t write(int fd, const void *buf, size_t count)
 	int i;
 
 	/*if ((G_FD > 0) && (G_FD == fd))*/
+	if (1 != fd)
 	{
 		printf("CALL write(%i,", fd);
 		c = buf;
