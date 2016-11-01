@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <linux/fs.h>
+#include <linux/types.h>
 
 #define __USE_GNU
 #include <dlfcn.h>
@@ -16,7 +19,9 @@ typedef int (*orig_close_f_type)(int fd);
 typedef ssize_t (*orig_write_f_type)(int fd, const void *buf, size_t count);
 typedef ssize_t (*orig_pwrite_f_type)(int fd, const void *buf, size_t count, off_t offset);
 typedef int (*orig_ioctl_f_type)(int fd, unsigned long int request, ...);
-
+typedef void * (*orig_mmap_f_type)(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+typedef int (*orig_handleOpen_f_type)(const char *path, int oflag, int mode);
+typedef int (*orig_filp_open_f_type)(const char *filename, int flags, umode_t mode);
 
 
 int G_FD = -1;
@@ -160,4 +165,48 @@ int ioctl(int fd, unsigned long int request, ...)
 		printf("%i | [%hhX %hhX %hhX %hhX %hhX]\n", status, c[5], c[6], c[7], c[8], c[9]);
 	}
 	return status;
+}
+
+void * mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+	orig_mmap_f_type orig_mmap;
+    void * result;
+
+	orig_mmap = (orig_mmap_f_type)dlsym(RTLD_NEXT, "mmap");
+	result = orig_mmap(addr, length, prot, flags, fd, offset);
+    printf("CALL mmap(%p, %zu, %i, %i, %i, %jd) -> %p\n", addr, length, prot, flags, fd, offset, result);
+    return result;
+}
+
+int handleOpen(const char *path, int oflag, int mode)
+{
+    int fd;
+	orig_handleOpen_f_type orig_handleOpen;
+
+	orig_handleOpen = (orig_handleOpen_f_type)dlsym(RTLD_NEXT, "handleOpen");
+	fd = orig_handleOpen(path, oflag, mode);
+	printf("CALL handleOpen(\"%s\", %i, %i) -> %i\n", path, oflag, mode, fd);
+	return fd;
+}
+
+int sys_open(const char *path, int oflag, int mode)
+{
+    int fd;
+	orig_handleOpen_f_type orig_sys_open;
+
+	orig_sys_open = (orig_handleOpen_f_type)dlsym(RTLD_NEXT, "sys_open");
+	fd = orig_sys_open(path, oflag, mode);
+	printf("CALL sys_open(\"%s\", %i, %i) -> %i\n", path, oflag, mode, fd);
+	return fd;
+}
+
+struct file *filp_open(const char *filename, int flags, umode_t mode)
+{
+    struct file * result;
+	orig_filp_open_f_type orig_filp_open;
+
+	orig_filp_open = (orig_filp_open_f_type)dlsym(RTLD_NEXT, "filp_open");
+	result = orig_filp_open(filename, flags, mode);
+	printf("CALL filp_open(\"%s\", %i, %hu) -> %i\n", filename, flags, mode, fileno(result));
+	return result;
 }
