@@ -3,30 +3,57 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 int IIC_IO = 0xc0036909;
 signed char buf_getData[] = {0, 0, 5, 1, 2, 0x42, 0, 0, 0, 0};
+int const SLEEP = 250000;
+int FDS [] = {-1, -1}
+int const FDS_LEN = 2;
 
-int write_buf(int fd, char * buf, int len)
+
+void exit_extra(
+		int result,
+		char * what)
+{
+	printf("result = %c\n", result);
+	printf("errno = %d\n", errno);
+	printf("Oh dear, something went wrong! %s\n", strerror(errno));
+	printf("failed to %s - abort\n", what);
+	for (i = 0 ; i < FDS_LEN ; ++i)
+	{
+		if (FDS[i] > 0)
+		{
+			close(FDS[i]);
+		}
+	}
+	exit(1);
+}
+
+int open_or_die(char * filename, int mode)
+{
+	int fd;
+
+	fd = open(filename, mode);
+	if (fd <= 0)
+	{
+		exit_extra(fd, "open");
+	}
+	return fd;
+}
+
+void write_or_die(int fd, char * buf, int len)
 {
     int result;
     result = write(fd, buf, len);
-    if (-1 == result)
-    {
-        printf("result = %c\n", result);
-        printf("errno = %d\n", errno);
-        printf("Oh dear, something went wrong! %s\n", strerror(errno));
-        printf("failed to write - abort\n");
-        close(fd);
-    }
-    return result;
+	exit_extra(result, "write");
 }
 
 int read_value(int fd)
 {
     int result;
     int i;
-    usleep(250000);
+    usleep(SLEEP);
     printf("ioctl get value\n");
     result = ioctl(fd, IIC_IO, buf_getData);
     if (0 > result)
@@ -63,100 +90,66 @@ int main()
     signed char buf_getStatus[] = {0, 0, 5, 1, 2, 0x32, 0};
     signed char buf_port[] = {0};
     int IIC_CONNECT = 0xc0036907;
-    int fd = 0;
+    int fd_iic = 0;
+    int fd_dcm 0;
     int i = 0;
     int j = 0;
     int result = 0;
     printf("open\n");
-    fd = open("/dev/lms_iic", 2);
-    if (0 == fd)
-    {
-        printf("failed to open - abort\n");
-        return 1;
-    }
-    printf("fd = %i\n", fd);
+    fd_iic = open_or_die("/dev/lms_iic", 2);
+    printf("fd_iic = %i\n", fd_iic);
+    fd_dcm = open_or_die("/dev/lms_dcm", 2);
+    printf("fd_dcm = %i\n", fd_dcm);
     printf("write connected\n");
-    result = write_buf(fd, buf_connected, len_connected);
-    if (-1 == result)
-    {
-        return 1;
-    }
+    write_or_die(fd_dcm, buf_connected, len_connected);
     for (i = 0 ; i < 2 ; ++i)
     {
         printf("write float\n");
-        result = write_buf(fd, buf_float, len_float);
-        if (-1 == result)
-        {
-            return 1;
-        }
+        write_or_die(fd_dcm, buf_float, len_float);
     }
     printf("ioctl connect\n");
-    result = ioctl(fd, IIC_CONNECT, buf_port);
+    result = ioctl(fd_iic, IIC_CONNECT, buf_port);
     if (0 > result)
     {
-        printf("result = %d\n", result);
-        printf("errno = %d\n", errno);
-        printf("Oh dear, something went wrong! %s\n", strerror(errno));
-        printf("failed to ioctl - abort\n");
-        close(fd);
-        return 1;
+		exit_extra(result, "ioctl");
     }
-    printf("write\n");
-    result = write_buf(fd, buf_init, len_init);
-    if (-1 == result)
-    {
-        return 1;
-    }
-    usleep(250000);
+    printf("write init\n");
+    write_or_die(fd_dcm, buf_init, len_init);
+    usleep(SLEEP);
     printf("ioctl set single read\n");
-    result = ioctl(fd, IIC_IO, buf_single);
+    result = ioctl(fd_iic, IIC_IO, buf_single);
     if (0 > result)
     {
-        printf("result = %d\n", result);
-        printf("errno = %d\n", errno);
-        printf("Oh dear, something went wrong! %s\n", strerror(errno));
-        printf("failed to ioctl - abort\n");
-        close(fd);
-        return 1;
+		exit_extra(result, "ioctl");
     }
-    result = read_value(fd);
+    result = read_value(fd_iic);
     if (0 > result)
     {
         return 1;
     }
-    usleep(250000);
+    usleep(SLEEP);
     printf("ioctl set continuous read\n");
-    result = ioctl(fd, IIC_IO, buf_continuous);
+    result = ioctl(fd_iic, IIC_IO, buf_continuous);
     if (0 > result)
     {
-        printf("result = %d\n", result);
-        printf("errno = %d\n", errno);
-        printf("Oh dear, something went wrong! %s\n", strerror(errno));
-        printf("failed to ioctl - abort\n");
-        close(fd);
-        return 1;
+		exit_extra(result, "ioctl");
     }
-    usleep(250000);
+    usleep(SLEEP);
     printf("ioctl get status\n");
-    result = ioctl(fd, IIC_IO, buf_getStatus);
+    result = ioctl(fd_iic, IIC_IO, buf_getStatus);
     if (0 > result)
     {
-        printf("result = %d\n", result);
-        printf("errno = %d\n", errno);
-        printf("Oh dear, something went wrong! %s\n", strerror(errno));
-        printf("failed to ioctl - abort\n");
-        close(fd);
-        return 1;
+		exit_extra(result, "ioctl");
     }
     printf("status = %d\n", buf_getStatus[5]);
     for (j = 0 ; j < 10 ; ++j)
     {
-        result = read_value(fd);
+        result = read_value(fd_iic);
         if (0 > result)
         {
             return 1;
         }
     }
-    close(fd);
+    close(fd_iic);
     return 0;
 }
