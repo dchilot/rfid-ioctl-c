@@ -15,6 +15,7 @@
  */
 
 typedef int (*orig_open_f_type)(const char *pathname, int flags, ...);
+typedef int (*orig_creat_f_type)(const char *pathname, mode_t mode);
 typedef int (*orig_close_f_type)(int fd);
 typedef ssize_t (*orig_write_f_type)(int fd, const void *buf, size_t count);
 typedef ssize_t (*orig_pwrite_f_type)(int fd, const void *buf, size_t count, off_t offset);
@@ -55,6 +56,20 @@ int open(const char *pathname, int flags, ...)
 			G_FD = fd;
 		}
 	}
+	return fd;
+}
+
+int creat(const char *pathname, mode_t mode)
+{
+	int fd;
+	int min_len;
+	int len;
+	orig_creat_f_type orig_creat;
+
+	orig_creat = (orig_creat_f_type)dlsym(RTLD_NEXT, "creat");
+	fd = orig_creat(pathname, mode);
+	len = strlen(pathname);
+	printf("CALL creat(\"%s\", %3o, ...) -> %i\n", pathname, mode & 0777, fd);
 	return fd;
 }
 
