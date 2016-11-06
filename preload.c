@@ -22,6 +22,7 @@ typedef int (*orig_ioctl_f_type)(int fd, unsigned long int request, ...);
 typedef void * (*orig_mmap_f_type)(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 typedef int (*orig_handleOpen_f_type)(const char *path, int oflag, int mode);
 typedef int (*orig_filp_open_f_type)(const char *filename, int flags, umode_t mode);
+typedef FILE * (*orig_fopen_f_type)(const char *path, const char *mode);
 
 
 int G_FD = -1;
@@ -210,4 +211,17 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
 	result = orig_filp_open(filename, flags, mode);
 	printf("CALL filp_open(\"%s\", %i, %hu) -> %i\n", filename, flags, mode, fileno(result));
 	return result;
+}
+
+FILE *fopen(const char *path, const char *mode)
+{
+	FILE * result;
+	orig_fopen_f_type orig_fopen;
+
+	orig_fopen = (orig_fopen_f_type)dlsym(RTLD_NEXT, "fopen");
+	printf("CALL fopen(\"%s\", \"%s\")\n", path, mode);
+	return orig_fopen(path, mode);
+	/*result = orig_fopen(path, mode);*/
+	/*printf("CALL fopen(\"%s\", \"%s\") -> %i\n", path, mode, fileno(result));*/
+	/*return result;*/
 }
